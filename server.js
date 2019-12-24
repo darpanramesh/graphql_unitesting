@@ -1,25 +1,50 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-var express_1 = __importDefault(require("express"));
-var db_1 = __importDefault(require("./Build/src/Config/db"));
-var cors_1 = __importDefault(require("cors"));
-var App = express_1.default();
-var db = db_1.default.connection;
-db.on('error', console.error.bind(console, 'connection error:'));
-db.once('open', function () {
-    console.log('Database successfully Connected!');
-});
-App.use(cors_1.default());
-// App.get('/',(req,res)=>{
-//     res.send("Hello World")
-// })
-// const port: number =  4004;
-var PORT = process.env.PORT || 4004;
-App.listen(PORT, function () {
-    console.log("Server is running..");
-});
-App.use(express_1.default.json());
-App.use('/todo', require('./Build/src/Routes'));
+var express = require('express');
+var graphqlHTTP = require('express-graphql');
+var { buildSchema,graphql } = require('graphql');
+const bodyParser = require('body-parser')
+var app = express();
+
+
+var schema = buildSchema(`
+  type todos{
+      id:Int
+      title:String
+      description:String
+  }
+  type Query {
+    todo: [todos]
+  }
+`);
+
+let obj = [];
+
+app.use(express.json())
+
+app.post('/post',(req,res)=>{
+  console.log(req.body)
+    obj.push(req.body)
+})
+
+var root = {todo: obj};
+app.get('/getdata',(req,res)=>{
+  const query = "query{todo{ id title description}}"
+  graphql(schema, query, root)
+  .then(response=>{
+    res.send(response);
+  }).catch(error=>{
+    console.log(error)
+  })
+})
+
+
+
+app.use('/data', graphqlHTTP({
+  schema: schema,
+  rootValue: root,
+  graphiql: true,
+}));
+
+app.listen(4000, () => console.log('Now browse to localhost:4000/graphql'));
+
+
+module.exports = app
